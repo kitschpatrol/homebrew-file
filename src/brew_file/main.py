@@ -10,9 +10,9 @@ def main() -> int:
     b = BrewFile()
 
     # Pre Parser
-    arg_parser_opts = {"add_help": False, "allow_abbrev": False}
+    arg_parser_opts: dict = {"add_help": False, "allow_abbrev": False}
     pre_parser = argparse.ArgumentParser(
-        usage=__prog__ + "...", **arg_parser_opts
+        usage=f"{__prog__}...", **arg_parser_opts
     )
     group = pre_parser.add_mutually_exclusive_group()
     group.add_argument(
@@ -265,7 +265,10 @@ def main() -> int:
         verbose_parser,
     ]
     formatter = argparse.RawTextHelpFormatter
-    subparser_opts = {"formatter_class": formatter, "allow_abbrev": False}
+    subparser_opts: dict = {
+        "formatter_class": formatter,
+        "allow_abbrev": False,
+    }
 
     # Main parser
     parser = argparse.ArgumentParser(
@@ -488,14 +491,14 @@ def main() -> int:
         if args[0] in ["-h", "--help"]:
             args[0] = "help"
     (ns, args_tmp) = parser.parse_known_args(args)
-    args = vars(ns)
-    args.update({"args": args_tmp})
-    if args["command"] in ("install") and args["args"]:
-        cmd = args["command"]
-        args["command"] = "brew"
-        args["args"].insert(0, cmd)
+    args_dict = vars(ns)
+    args_dict.update({"args": args_tmp})
+    if args_dict["command"] in ("install") and args_dict["args"]:
+        cmd = args_dict["command"]
+        args_dict["command"] = "brew"
+        args_dict["args"].insert(0, cmd)
 
-    b.set_args(**args)
+    b.set_args(**args_dict)
 
     if b.opt["command"] == "help":
         parser.print_help()
@@ -592,7 +595,7 @@ def main() -> int:
     except KeyboardInterrupt:
         return 1
     except RuntimeError as e:
-        b.err(e)
+        b.err(str(e))
         return 1
     return 0
 

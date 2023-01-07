@@ -70,14 +70,22 @@ def test_proc_err(helper):
 
 
 def test_proc_exit_on_err(helper):
-    ret_proc, lines_proc = helper.proc("ech test", separate_err=False, exit_on_err=False)
+    ret_proc, lines_proc = helper.proc(
+        "ech test", separate_err=False, exit_on_err=False
+    )
     assert ret_proc == -1
     print(lines_proc)
-    assert lines_proc == ["ech test: [Errno 2] No such file or directory: 'ech'"]
-    ret_proc, lines_proc = helper.proc("ech test", separate_err=True, exit_on_err=False)
+    assert lines_proc == [
+        "ech test: [Errno 2] No such file or directory: 'ech'"
+    ]
+    ret_proc, lines_proc = helper.proc(
+        "ech test", separate_err=True, exit_on_err=False
+    )
     assert ret_proc == -1
     print(lines_proc)
-    assert lines_proc == ["ech test: [Errno 2] No such file or directory: 'ech'"]
+    assert lines_proc == [
+        "ech test: [Errno 2] No such file or directory: 'ech'"
+    ]
 
 
 def test_proc_dryrun(helper):
@@ -86,44 +94,44 @@ def test_proc_dryrun(helper):
     assert lines_proc == ["echo test"]
 
 
-def test_out(helper, capfd):
+def test_out(helper, capsys):
     helper.opt["verbose"] = 1
     helper.out("show", verbose=0)
     helper.out("no show", verbose=100)
-    captured = capfd.readouterr()
+    captured = capsys.readouterr()
     assert captured.out == "show\n"
 
 
-def test_info(helper, capfd):
+def test_info(helper, capsys):
     helper.opt["verbose"] = 2
     helper.info("show")
     helper.opt["verbose"] = 1
     helper.info("no show")
-    captured = capfd.readouterr()
+    captured = capsys.readouterr()
     assert captured.out == "show\n"
 
 
-def test_warn(helper, capfd):
+def test_warn(helper, capsys):
     helper.opt["verbose"] = 1
     helper.warn("show")
     helper.opt["verbose"] = 0
     helper.warn("no show")
-    captured = capfd.readouterr()
+    captured = capsys.readouterr()
     assert captured.out == "[WARNING]: show\n"
 
 
-def test_err(helper, capfd):
+def test_err(helper, capsys):
     helper.opt["verbose"] = 0
     helper.err("show")
     helper.opt["verbose"] = -1
     helper.err("no show")
-    captured = capfd.readouterr()
+    captured = capsys.readouterr()
     assert captured.out == "[ERROR]: show\n"
 
 
-def test_banner(helper, capfd):
+def test_banner(helper, capsys):
     helper.banner("test banner")
-    captured = capfd.readouterr()
+    captured = capsys.readouterr()
     assert captured.out == "\n###########\ntest banner\n###########\n\n"
 
 

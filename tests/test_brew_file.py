@@ -1,7 +1,7 @@
-from tempfile import NamedTemporaryFile, TemporaryDirectory
-import os
 import io
+import os
 from pathlib import Path
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 
 import pytest
 
@@ -14,41 +14,44 @@ def bf():
     return obj
 
 
-def test_debug_banner(bf, capfd):
+def test_debug_banner(bf, capsys):
     bf.debug_banner()
-    out, err = capfd.readouterr()
-    assert out == ""
+    captured = capsys.readouterr()
+    assert captured.out == ""
     bf.opt["dryrun"] = True
     bf.debug_banner()
-    out, err = capfd.readouterr()
-    assert out == "\n##################\n# This is dry run.\n##################\n\n"
+    captured = capsys.readouterr()
+    assert (
+        captured.out
+        == "\n##################\n# This is dry run.\n##################\n\n"
+    )
 
 
-def test_parse_env_opts(bf, capfd):
-    os.environ['TEST_OPT'] = "--opt2=3 --opt3 opt4=4"
+def test_parse_env_opts(bf):
+    os.environ["TEST_OPT"] = "--opt2=3 --opt3 opt4=4"
     opts = bf.parse_env_opts("test_opt", {"--opt1": "1", "--opt2": "2"})
     assert opts == {"--opt1": "1", "--opt2": "3", "--opt3": "", "opt4": "4"}
-    os.environ['TEST_OPT'] = "abc"
 
 
 def test_set_args(bf):
-    bf.opt['appstore'] = 1
-    bf.opt['no_appstore'] = 1
-    bf.set_args(a='1', verbose='1')
-    assert isinstance(bf.opt['a'], str)
-    assert isinstance(bf.opt['verbose'], int)
-    assert bf.opt['appstore'] == 1
-    bf.opt['appstore'] = -1
-    bf.opt['no_appstore'] = False
+    bf.opt["appstore"] = 1
+    bf.opt["no_appstore"] = 1
+    bf.set_args(a="1", verbose="1")
+    assert isinstance(bf.opt["a"], str)
+    assert isinstance(bf.opt["verbose"], int)
+    assert bf.opt["appstore"] == 1
+    bf.opt["appstore"] = -1
+    bf.opt["no_appstore"] = False
     bf.set_args()
-    assert bf.opt['appstore'] == 0
-    bf.opt['appstore'] = 1
-    bf.opt['no_appstore'] = False
+    assert bf.opt["appstore"] == 0
+    bf.opt["appstore"] = 1
+    bf.opt["no_appstore"] = False
     bf.set_args()
-    assert bf.opt['appstore'] == 1
+    assert bf.opt["appstore"] == 1
 
 
-@pytest.mark.parametrize("input_value, ret, out",
+@pytest.mark.parametrize(
+    "input_value, ret, out",
     [
         ("y\n", True, "Question? [y/n]: "),
         ("Y\n", True, "Question? [y/n]: "),
@@ -60,14 +63,18 @@ def test_set_args(bf):
         ("no\n", False, "Question? [y/n]: "),
         ("NO\n", False, "Question? [y/n]: "),
         ("No\n", False, "Question? [y/n]: "),
-        ("a\nb\ny\n", True, "Question? [y/n]: Answer with yes (y) or no (n): Answer with yes (y) or no (n): "),
-    ]
+        (
+            "a\nb\ny\n",
+            True,
+            "Question? [y/n]: Answer with yes (y) or no (n): Answer with yes (y) or no (n): ",
+        ),
+    ],
 )
-def test_ask_yn(bf, capfd, monkeypatch, input_value ,ret, out):
-    monkeypatch.setattr('sys.stdin', io.StringIO(input_value))
+def test_ask_yn(bf, capsys, monkeypatch, input_value, ret, out):
+    monkeypatch.setattr("sys.stdin", io.StringIO(input_value))
     assert bf.ask_yn("Question?") == ret
-    cap_out, cap_err = capfd.readouterr()
-    assert cap_out == out
+    captured = capsys.readouterr()
+    assert captured.out == out
 
 
 def test_verbose(bf):
@@ -81,7 +88,7 @@ def test_proc(bf):
     pass
 
 
-def test_remove(bf, capfd):
+def test_remove(bf, capsys):
     with TemporaryDirectory() as tmpdir:
         file = Path(Path(tmpdir) / "testfile")
         file.touch()
@@ -92,8 +99,11 @@ def test_remove(bf, capfd):
         file.touch()
         bf.remove(str(directory))
         bf.remove(f"{tmpdir}/notexist")
-        out, err = capfd.readouterr()
-        assert out == f"[WARNING]: Tried to remove non usual file/directory: {tmpdir}/notexist\n"
+        captured = capsys.readouterr()
+        assert (
+            captured.out
+            == f"[WARNING]: Tried to remove non usual file/directory: {tmpdir}/notexist\n"
+        )
 
 
 def test_brew_val(bf):
@@ -114,7 +124,7 @@ def test_read_all(bf):
     print(bf.get("main_input"))
     print(bf.get("file_input"))
     print(bf.get("before_input"))
-    print(bf.get("afeter_input"))
+    print(bf.get("after_input"))
     print(bf.get("cmd_input"))
 
 
@@ -122,23 +132,23 @@ def test_read(bf):
     helper = brew_file.BrewHelper({})
 
     bf.brewinfo_ext = []
-    filename = Path(f"{Path(__file__).parent}/files/BrewfileMain")
-    brewinfo = brew_file.BrewInfo(helper=helper, filename=filename)
+    file = Path(f"{Path(__file__).parent}/files/BrewfileMain")
+    brewinfo = brew_file.BrewInfo(helper=helper, file=file)
     ret = bf.read(brewinfo, True)
-    assert ret.filename == filename
+    assert ret.file == file
 
     bf.brewinfo_ext = []
-    filename = Path(f"{Path(__file__).parent}/files/BrewfileMain")
-    brewinfo = brew_file.BrewInfo(helper=helper, filename=filename)
+    file = Path(f"{Path(__file__).parent}/files/BrewfileMain")
+    brewinfo = brew_file.BrewInfo(helper=helper, file=file)
     ret = bf.read(brewinfo, False)
     assert ret is None
 
     bf.brewinfo_ext = []
-    filename = Path(f"{Path(__file__).parent}/files/BrewfileTest")
-    brewinfo = brew_file.BrewInfo(helper=helper, filename=filename)
+    file = Path(f"{Path(__file__).parent}/files/BrewfileTest")
+    brewinfo = brew_file.BrewInfo(helper=helper, file=file)
     ret = bf.read(brewinfo, True)
-    filename = Path(f"{Path(__file__).parent}/files/BrewfileMain")
-    assert ret.filename == filename
+    file = Path(f"{Path(__file__).parent}/files/BrewfileMain")
+    assert ret.file == file
     files = [
         Path(f"{Path(__file__).parent}/files/BrewfileMain"),
         Path(f"{Path(__file__).parent}/files/BrewfileExt"),
@@ -148,7 +158,7 @@ def test_read(bf):
         Path(Path("~/BrewfileHomeForTestingNotExists").expanduser()),
     ]
     for i, f in zip(bf.brewinfo_ext, files):
-        assert i.filename == f
+        assert i.file == f
 
     # Absolute path check
     with NamedTemporaryFile() as f1, NamedTemporaryFile() as f2, NamedTemporaryFile() as f3:
@@ -158,9 +168,9 @@ def test_read(bf):
             f.write(f"main {f3.name}")
 
         bf.brewinfo_ext = []
-        brewinfo = brew_file.BrewInfo(helper=helper, filename=f1.name)
+        brewinfo = brew_file.BrewInfo(helper=helper, file=Path(f1.name))
         ret = bf.read(brewinfo, True)
-        assert ret.filename == Path(f3.name)
+        assert ret.file == Path(f3.name)
 
 
 def test_list_to_main(bf):
@@ -329,10 +339,13 @@ def test_make_pack_deps(bf):
     pass
 
 
-def test_my_test(bf, capfd):
+def test_my_test(bf, capsys):
     bf.my_test()
-    out, err = capfd.readouterr()
-    assert out == "test\ntest\n[WARNING]: Tried to remove non usual file/directory: aaa\nread input: 0\nread input cleared: 0\n{'test_pack': 'test opt', 'test_pack2': 'test opt2'}\n"
+    captured = capsys.readouterr()
+    assert (
+        captured.out
+        == "test\ntest\n[WARNING]: Tried to remove non usual file/directory: aaa\nread input: 0\nread input cleared: 0\n{'test_pack': 'test opt', 'test_pack2': 'test opt2'}\n"
+    )
 
 
 def test_execute(bf):

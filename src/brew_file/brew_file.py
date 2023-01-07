@@ -122,16 +122,16 @@ class BrewFile:
 
         self.opt["all_files"] = False
 
-        self.int_opts = ["verbose"]
-        self.float_opts = []
+        self.int_opts: list[str] = ["verbose"]
+        self.float_opts: list[str] = []
 
-        self.brewinfo = BrewInfo(self.helper, self.opt["input"])
-        self.brewinfo_ext = []
+        self.brewinfo = BrewInfo(self.helper, Path(self.opt["input"]))
+        self.brewinfo_ext: list[BrewInfo] = []
         self.brewinfo_main = self.brewinfo
         self.opt["read"] = False
 
-        self.pack_deps = {}
-        self.top_packs = []
+        self.pack_deps: dict[str, list[str]] = {}
+        self.top_packs: list[str] = []
 
         self.editor = ""
 
@@ -139,7 +139,9 @@ class BrewFile:
         if self.opt["dryrun"]:
             self.banner("# This is dry run.")
 
-    def parse_env_opts(self, env_var: str, base_opts: dict | None = None) -> dict:
+    def parse_env_opts(
+        self, env_var: str, base_opts: dict | None = None
+    ) -> dict:
         """Returns a dictionary parsed from an environment variable."""
         if base_opts is not None:
             opts = base_opts.copy()
@@ -237,16 +239,16 @@ class BrewFile:
             dryrun=dryrun,
         )
 
-    def info(self, text: str, verbose: int =2) -> None:
+    def info(self, text: str, verbose: int = 2) -> None:
         self.helper.info(text, verbose)
 
-    def warn(self, text: str, verbose: int =1) -> None:
+    def warn(self, text: str, verbose: int = 1) -> None:
         self.helper.warn(text, verbose)
 
-    def err(self, text: str, verbose: int =1) -> None:
+    def err(self, text: str, verbose: int = 1) -> None:
         self.helper.err(text, verbose)
 
-    def banner(self, text: str, verbose: int =1) -> None:
+    def banner(self, text: str, verbose: int = 1) -> None:
         self.helper.banner(text, verbose)
 
     def remove(self, path: str) -> None:
@@ -279,7 +281,9 @@ class BrewFile:
                 self.brewinfo_main.brew_input_opt[p] = ""
         self.opt["read"] = True
 
-    def read(self, brewinfo, is_main=False):
+    def read(
+        self, brewinfo: BrewInfo, is_main: bool = False
+    ) -> BrewInfo | None:
         if is_main:
             main = brewinfo
         else:
@@ -449,7 +453,8 @@ class BrewFile:
                 raise RuntimeError(
                     "Can not clone " + self.opt["repo"] + ".\n"
                     "please check the repository, or reset with\n"
-                    "    $ " + __prog__ + " set_repo")
+                    "    $ " + __prog__ + " set_repo"
+                )
             else:
                 return False
         self.init_repo()
@@ -469,7 +474,9 @@ class BrewFile:
             + self.repo_name()
             + " doesn't exist."
         )
-        raise RuntimeError("Please create the repository first, then try again")
+        raise RuntimeError(
+            "Please create the repository first, then try again"
+        )
 
     def check_local_repo(self):
         dirname = self.opt["repo"].replace("file:///", "")
@@ -573,8 +580,9 @@ class BrewFile:
         # Check the repository
         if self.opt["repo"] == "":
             raise RuntimeError(
-                    "Please set a repository, or reset with:\n"
-                    "    $ " + __prog__ + " set_repo\n")
+                "Please set a repository, or reset with:\n"
+                "    $ " + __prog__ + " set_repo\n"
+            )
 
         # Clone if it doesn't exist
         if not self.brewinfo.check_dir():
@@ -613,7 +621,7 @@ class BrewFile:
         cmd = self.opt["args"][0] if self.opt["args"] else ""
         subcmd = self.opt["args"][1] if len(self.opt["args"]) > 1 else ""
         args = self.opt["args"]
-        env = {}
+        env: dict[str, str] = {}
         if cmd == "mas":
             exe = ["mas"]
             self.opt["args"].pop(0)
@@ -1015,15 +1023,11 @@ class BrewFile:
             if self.opt["appstore"] == 1 or (
                 self.opt["appstore"] == 2 and force_appstore_list
             ):
-                self.brewinfo.set(
-                    "appstore_list", self.get_appstore_list()
-                )
+                self.brewinfo.set("appstore_list", self.get_appstore_list())
             elif self.opt["appstore"] == 2:
                 if self.brewinfo.check_file():
                     self.read_all()
-                self.brewinfo.set(
-                    "appstore_list", self.get("appstore_input")
-                )
+                self.brewinfo.set("appstore_list", self.get("appstore_input"))
 
     def clean_list(self):
         """Remove duplications between brewinfo.list to extra files' input."""
@@ -1115,7 +1119,7 @@ class BrewFile:
             self.banner("# Set Brewfile repository as " + self.opt["repo"])
 
         if self.opt["repo"] in ["non", ""]:
-            set_brewfile_local()
+            self.set_brewfile_local()
         else:
             # Write repository to the input file
             with OpenWrapper(self.opt["input"], "w") as f:
@@ -2239,7 +2243,7 @@ class BrewFile:
         self.brewinfo.set("brew_input_opt", {"test_pack": "test opt"})
         self.brewinfo.add("brew_input_opt", {"test_pack2": "test opt2"})
         print(self.brewinfo.get("brew_input_opt"))
-        self.brewinfo.read("testfile")
+        self.brewinfo.read(Path("testfile"))
 
     def execute(self) -> None:
         """Main execute function."""
