@@ -1,4 +1,6 @@
-import tempfile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+import os
+import io
 from pathlib import Path
 
 import pytest
@@ -12,36 +14,108 @@ def bf():
     return obj
 
 
-def test_parse_env_opts(bf):
-    pass
+def test_debug_banner(bf, capfd):
+    bf.debug_banner()
+    out, err = capfd.readouterr()
+    assert out == ""
+    bf.opt["dryrun"] = True
+    bf.debug_banner()
+    out, err = capfd.readouterr()
+    assert out == "\n##################\n# This is dry run.\n##################\n\n"
+
+
+def test_parse_env_opts(bf, capfd):
+    os.environ['TEST_OPT'] = "--opt2=3 --opt3 opt4=4"
+    opts = bf.parse_env_opts("test_opt", {"--opt1": "1", "--opt2": "2"})
+    assert opts == {"--opt1": "1", "--opt2": "3", "--opt3": "", "opt4": "4"}
+    os.environ['TEST_OPT'] = "abc"
 
 
 def test_set_args(bf):
-    pass
+    bf.opt['appstore'] = 1
+    bf.opt['no_appstore'] = 1
+    bf.set_args(a='1', verbose='1')
+    assert isinstance(bf.opt['a'], str)
+    assert isinstance(bf.opt['verbose'], int)
+    assert bf.opt['appstore'] == 1
+    bf.opt['appstore'] = -1
+    bf.opt['no_appstore'] = False
+    bf.set_args()
+    assert bf.opt['appstore'] == 0
+    bf.opt['appstore'] = 1
+    bf.opt['no_appstore'] = False
+    bf.set_args()
+    assert bf.opt['appstore'] == 1
 
 
-def test_ask_yn(bf):
-    pass
+@pytest.mark.parametrize("input_value, ret, out",
+    [
+        ("y\n", True, "Question? [y/n]: "),
+        ("Y\n", True, "Question? [y/n]: "),
+        ("yes\n", True, "Question? [y/n]: "),
+        ("YES\n", True, "Question? [y/n]: "),
+        ("Yes\n", True, "Question? [y/n]: "),
+        ("n\n", False, "Question? [y/n]: "),
+        ("N\n", False, "Question? [y/n]: "),
+        ("no\n", False, "Question? [y/n]: "),
+        ("NO\n", False, "Question? [y/n]: "),
+        ("No\n", False, "Question? [y/n]: "),
+        ("a\nb\ny\n", True, "Question? [y/n]: Answer with yes (y) or no (n): Answer with yes (y) or no (n): "),
+    ]
+)
+def test_ask_yn(bf, capfd, monkeypatch, input_value ,ret, out):
+    monkeypatch.setattr('sys.stdin', io.StringIO(input_value))
+    assert bf.ask_yn("Question?") == ret
+    cap_out, cap_err = capfd.readouterr()
+    assert cap_out == out
 
 
 def test_verbose(bf):
-    pass
+    bf.opt["verbose"] = 1
+    assert bf.verbose() == 1
+    del bf.opt["verbose"]
+    assert bf.verbose() == 10
 
 
 def test_proc(bf):
     pass
 
 
-def test_remove(bf):
-    pass
+def test_remove(bf, capfd):
+    with TemporaryDirectory() as tmpdir:
+        file = Path(Path(tmpdir) / "testfile")
+        file.touch()
+        bf.remove(str(file))
+        directory = Path(Path(tmpdir) / "testdir")
+        directory.mkdir()
+        file = Path(directory / "testfile")
+        file.touch()
+        bf.remove(str(directory))
+        bf.remove(f"{tmpdir}/notexist")
+        out, err = capfd.readouterr()
+        assert out == f"[WARNING]: Tried to remove non usual file/directory: {tmpdir}/notexist\n"
 
 
 def test_brew_val(bf):
-    pass
+    prefix = "/".join(bf.proc("which brew")[1][0].split("/")[:-2])
+    assert bf.brew_val("prefix") == prefix
 
 
 def test_read_all(bf):
-    pass
+    bf.opt["input"] = f"{Path(__file__).parent}/files/BrewfileTest"
+    bf.read_all()
+    print(bf.brewinfo_main)
+    print(bf.brewinfo_ext)
+    print(bf.get("brew_input"))
+    print(bf.get("brew_input_opt"))
+    print(bf.get("tap_input"))
+    print(bf.get("cask_input"))
+    print(bf.get("appstore_input"))
+    print(bf.get("main_input"))
+    print(bf.get("file_input"))
+    print(bf.get("before_input"))
+    print(bf.get("afeter_input"))
+    print(bf.get("cmd_input"))
 
 
 def test_read(bf):
@@ -71,27 +145,22 @@ def test_read(bf):
         Path(f"{Path(__file__).parent}/files/BrewfileExt2"),
         Path(f"{Path(__file__).parent}/files/BrewfileExt3"),
         Path(f"{Path(__file__).parent}/files/BrewfileNotExist"),
-        Path(Path("~/BrewfileHome").expanduser()),
+        Path(Path("~/BrewfileHomeForTestingNotExists").expanduser()),
     ]
     for i, f in zip(bf.brewinfo_ext, files):
         assert i.filename == f
 
     # Absolute path check
-    f1 = tempfile.NamedTemporaryFile()
-    f2 = tempfile.NamedTemporaryFile()
-    f3 = tempfile.NamedTemporaryFile()
-    with open(f1.name, "w") as f:
-        f.write(f"main {f2.name}")
-    with open(f2.name, "w") as f:
-        f.write(f"main {f3.name}")
+    with NamedTemporaryFile() as f1, NamedTemporaryFile() as f2, NamedTemporaryFile() as f3:
+        with open(f1.name, "w") as f:
+            f.write(f"main {f2.name}")
+        with open(f2.name, "w") as f:
+            f.write(f"main {f3.name}")
 
-    bf.brewinfo_ext = []
-    brewinfo = brew_file.BrewInfo(helper=helper, filename=f1.name)
-    ret = bf.read(brewinfo, True)
-    assert ret.filename == Path(f3.name)
-    f1.close()
-    f2.close()
-    f3.close()
+        bf.brewinfo_ext = []
+        brewinfo = brew_file.BrewInfo(helper=helper, filename=f1.name)
+        ret = bf.read(brewinfo, True)
+        assert ret.filename == Path(f3.name)
 
 
 def test_list_to_main(bf):
@@ -260,8 +329,10 @@ def test_make_pack_deps(bf):
     pass
 
 
-def test_my_test(bf):
+def test_my_test(bf, capfd):
     bf.my_test()
+    out, err = capfd.readouterr()
+    assert out == "test\ntest\n[WARNING]: Tried to remove non usual file/directory: aaa\nread input: 0\nread input cleared: 0\n{'test_pack': 'test opt', 'test_pack2': 'test opt2'}\n"
 
 
 def test_execute(bf):

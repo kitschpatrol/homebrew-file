@@ -5,7 +5,7 @@ from .brew_file import BrewFile
 from .info import __date__, __description__, __prog__, __version__
 
 
-def main():
+def main() -> int:
     # Prepare BrewFile
     b = BrewFile()
 
@@ -89,6 +89,7 @@ def main():
         "--form",
         action="store",
         dest="form",
+        default=b.opt["form"],
         help="Set input file format (default: %(default)s). \n"
         "file (or none)    : brew vim --HEAD --with-lua\n"
         "brewdler or bundle: brew 'vim', args: ['with-lua', 'HEAD']\n"
@@ -470,7 +471,7 @@ def main():
         print("Execute `" + __prog__ + " help` to get help.")
         print("")
         print("Refer https://homebrew-file.readthedocs.io for more details.")
-        sys.exit(1)
+        return 1
 
     if sys.argv[1] == "brew":
         args = sys.argv[1:]
@@ -498,14 +499,14 @@ def main():
 
     if b.opt["command"] == "help":
         parser.print_help()
-        sys.exit(0)
+        return 0
     elif b.opt["command"] == "brew":
         if args_tmp and args_tmp[0] in ["-h", "--help"]:
             subparsers.choices[b.opt["command"]].print_help()
-            sys.exit(0)
+            return 0
     elif "help" in args_tmp:
         subparsers.choices[b.opt["command"]].print_help()
-        sys.exit(0)
+        return 0
     elif b.opt["command"] == "commands":
         commands = [
             "install",
@@ -580,17 +581,21 @@ def main():
         print("commands:", " ".join(commands))
         print("commands_hyphen:", " ".join(commands_hyphen))
         print("options:", " ".join(options))
-        sys.exit(0)
+        return 0
     elif b.opt["command"] == "version":
         b.proc("brew -v", print_cmd=False)
         print(__prog__ + " " + __version__ + " " + __date__)
-        sys.exit(0)
+        return 0
 
     try:
         b.execute()
     except KeyboardInterrupt:
-        sys.exit(1)
+        return 1
+    except RuntimeError as e:
+        b.err(e)
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

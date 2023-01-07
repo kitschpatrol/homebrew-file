@@ -1,10 +1,10 @@
-import tempfile
+from tempfile import TemporaryDirectory
 
 from . import brew_file
 
 
 def test_tee(capsys):
-    with tempfile.TemporaryDirectory() as tmpdir:
+    with TemporaryDirectory() as tmpdir:
         out = brew_file.Tee(f"{tmpdir}/out1")
         out.write("test\n")
         out.writeln("test_ln")
@@ -18,7 +18,7 @@ def test_tee(capsys):
 
 
 def test_tee_out2_file(capfd):
-    with tempfile.TemporaryDirectory() as tmpdir:
+    with TemporaryDirectory() as tmpdir:
         out = brew_file.Tee(f"{tmpdir}/out1", f"{tmpdir}/out2")
         out.write("test\n")
         out.writeln("test_ln")
@@ -34,7 +34,7 @@ def test_tee_out2_file(capfd):
 
 
 def test_tee_no_out2(capfd):
-    with tempfile.TemporaryDirectory() as tmpdir:
+    with TemporaryDirectory() as tmpdir:
         out = brew_file.Tee(f"{tmpdir}/out1", use2=False)
         out.write("test\n")
         out.writeln("test_ln")

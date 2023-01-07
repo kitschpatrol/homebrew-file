@@ -9,9 +9,9 @@ python = ">=3.10,<3.11"
 
 [tool.poetry.dev-dependencies]
 pytest = "7.2.0"
-pre-commit = "2.21.0"
 pytest-cov = "4.0.0"
 pytest-xdist = "3.1.0"
+pre-commit = "2.21.0"
 black = "22.12.0"
 blacken-docs = "1.12.1"
 pyproject-flake8 = "6.0.0.post1"
@@ -45,7 +45,7 @@ remove-duplicate-keys = true
 remove-unused-variables = true
 
 [tool.autopep8]
-ignore = "E203,E501,E503"
+ignore = "E203,E501,W503"
 recursive = true
 aggressive = 3
 
@@ -74,4 +74,7 @@ non_interactive = true
 
 [tool.bandit]
 exclude_dirs = ["tests"]
+# B404: import subprocess -> until fixing w/o subprocess
+# B603: subprocess_without_shell_equals_true-> until fixing w/o subprocess, difficult to manage multi arguments especially for arguments including quotes with shell=True
+# B607: start_process_with_partial_path: until fixing w/o subprocess, difficult to run fixed path on multi environments
 skips = ["B404", "B603", "B607"]
