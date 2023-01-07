@@ -2,21 +2,23 @@
 
 
 dest="./bin/brew-file"
-output="$dest".tmp
-echo "#!/usr/bin/env python3" > $output
-grep -E "(^from|^import)" src/brew_file/*.py|grep -v "from \."| cut -d ":" -f2|sort -u >> $output
-cat src/brew_file/info.py|grep -vE "(^from|^import)" >> $output
-cat src/brew_file/utils.py|grep -vE "(^from|^import)" >> $output
-cat src/brew_file/brew_helper.py|grep -vE "(^from|^import)" >> $output
-cat src/brew_file/brew_info.py|grep -vE "(^from|^import)" >> $output
-cat src/brew_file/brew_file.py|grep -vE "(^from|^import)" >> $output
-cat src/brew_file/main.py|grep -vE "(^from|^import)" >> $output
+tmp_backup=$(mktemp -t brew-file)
+mv "$dest" "$tmp_backup"
+echo "Old brew-file was moved to $tmp_backup"
 
-black $output
-isort $output
-autoflake --in-place $output
-autopep8 --in-place $output
+echo "#!/usr/bin/env python3" > "$dest"
+grep -E "(^from|^import)" src/brew_file/*.py|grep -v "from \."| cut -d ":" -f2|sort -u >> "$dest"
+cat src/brew_file/info.py|grep -vE "(^from|^import)" >> "$dest"
+cat src/brew_file/utils.py|grep -vE "(^from|^import)" >> "$dest"
+cat src/brew_file/brew_helper.py|grep -vE "(^from|^import)" >> "$dest"
+cat src/brew_file/brew_info.py|grep -vE "(^from|^import)" >> "$dest"
+cat src/brew_file/brew_file.py|grep -vE "(^from|^import)" >> "$dest"
+cat src/brew_file/main.py|grep -vE "(^from|^import)" >> "$dest"
 
-diff -u $dest $output
-mv $output $dest
-chmod 755 $dest
+black "$dest"
+isort "$dest"
+autoflake --in-place "$dest"
+autopep8 --in-place "$dest"
+
+diff -u "$tmp_backup" "$dest"
+chmod 755 "$dest"

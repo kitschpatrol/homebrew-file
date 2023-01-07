@@ -307,8 +307,9 @@ class BrewInfo:
         if tap == "direct":
             return Path(self.helper.brew_val("cache"), "Formula")
 
-        tap_user = Path(tap).parent
-        tap_repo = f"homebrew-{Path(tap).name}"
+        tap_path = Path(tap)
+        tap_user = tap_path.parent
+        tap_repo = f"homebrew-{tap_path.name}"
         return Path(
             self.helper.brew_val("repository"),
             "Library/Taps",
@@ -645,9 +646,7 @@ fi
         # Write to Brewfile
         if output:
             output = output_prefix + output
-            out = Tee(
-                self.file.name, sys.stdout, self.helper.opt["verbose"] > 1
-            )
+            out = Tee(self.file, sys.stdout, self.helper.opt["verbose"] > 1)
             out.write(output)
             out.close()
 
