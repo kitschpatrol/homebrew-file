@@ -88,6 +88,22 @@ def test_proc(bf):
     pass
 
 
+def test_info(bf):
+    pass
+
+
+def test_warn(bf):
+    pass
+
+
+def test_err(bf):
+    pass
+
+
+def test_banner(bf):
+    pass
+
+
 def test_remove(bf, capsys):
     with TemporaryDirectory() as tmpdir:
         file = Path(Path(tmpdir) / "testfile")
@@ -251,7 +267,15 @@ def test_brew_cmd(bf):
     pass
 
 
-def test_check_brwe_cmd(bf):
+def test_add_path(bf):
+    pass
+
+
+def test_which_brew(bf):
+    pass
+
+
+def test_check_brew_cmd(bf):
     pass
 
 
