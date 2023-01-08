@@ -84,24 +84,65 @@ def test_verbose(bf):
     assert bf.verbose() == 10
 
 
-def test_proc(bf):
-    pass
+def test_proc(monkeypatch):
+    monkeypatch.setenv("HOMEBREW_NO_AUTO_UPDATE", "0")
+
+    def proc(
+        self,
+        cmd,
+        print_cmd,
+        print_out,
+        exit_on_err,
+        separate_err,
+        print_err,
+        verbose,
+        env,
+        dryrun,
+    ):
+        return env
+
+    monkeypatch.setattr(brew_file.BrewHelper, "proc", proc)
+
+    def __post_init__(self):
+        self.helper = brew_file.BrewHelper({})
+
+    monkeypatch.setattr(brew_file.BrewFile, "__post_init__", __post_init__)
+    bf = brew_file.BrewFile()
+    env = bf.proc("echo $HOMEBREW_NO_AUTO_UPDATE")
+    assert env == {"HOMEBREW_NO_AUTO_UPDATE": "1"}
 
 
-def test_info(bf):
-    pass
+def test_info(bf, capsys):
+    bf.opt["verbose"] = 2
+    bf.info("show")
+    bf.opt["verbose"] = 1
+    bf.info("no show")
+    captured = capsys.readouterr()
+    assert captured.out == "show\n"
 
 
-def test_warn(bf):
-    pass
+def test_warn(bf, capsys):
+    bf.opt["verbose"] = 1
+    bf.warn("show")
+    bf.opt["verbose"] = 0
+    bf.warn("no show")
+    captured = capsys.readouterr()
+    assert captured.out == "[WARNING]: show\n"
 
 
-def test_err(bf):
-    pass
+def test_err(bf, capsys):
+    bf.opt["verbose"] = 1
+    bf.err("show")
+    bf.opt["verbose"] = 0
+    bf.err("no show")
+    captured = capsys.readouterr()
+    assert captured.out == "[ERROR]: show\n"
 
 
-def test_banner(bf):
-    pass
+def test_banner(bf, capsys):
+    bf.banner("test banner")
+    captured = capsys.readouterr()
+    assert captured.out == "\n###########\ntest banner\n###########\n\n"
 
 
 def test_remove(bf, capsys):
@@ -372,5 +413,88 @@ def test_my_test(bf, capsys):
     )
 
 
-def test_execute(bf):
-    pass
+@pytest.mark.parametrize(
+    "command, out",
+    [
+        ("casklist", "check_cask () {}\n"),
+        ("set_repo", "set_brewfile_repo () {}\n"),
+        ("set_local", "set_brewfile_local () {}\n"),
+        ("pull", "check_repo () {}\nrepomgr ('pull',) {}\n"),
+        ("push", "check_repo () {}\nrepomgr ('push',) {}\n"),
+        ("brew", "check_repo () {}\nbrew_cmd () {}\n"),
+        ("init", "check_repo () {}\ninitialize () {}\n"),
+        ("dump", "check_repo () {}\ninitialize () {}\n"),
+        (
+            "edit",
+            "check_repo () {}\ncheck_input_file () {}\nedit_brewfile () {}\n",
+        ),
+        (
+            "cat",
+            "check_repo () {}\ncheck_input_file () {}\ncat_brewfile () {}\n",
+        ),
+        (
+            "get_files",
+            "check_repo () {}\ncheck_input_file () {}\nget_files () {'is_print': True, 'all_files': False}\n",
+        ),
+        (
+            "clean_non_request",
+            "check_repo () {}\ncheck_input_file () {}\nclean_non_request () {}\n",
+        ),
+        ("clean", "check_repo () {}\ncheck_input_file () {}\ncleanup () {}\n"),
+        (
+            "update",
+            "check_repo () {}\ncheck_input_file () {}\nproc ('brew update',) {'dryrun': False}\nproc ('brew upgrade --fetch-HEAD',) {'dryrun': False}\nproc ('brew upgrade --cask',) {'dryrun': False}\ninstall () {}\ncleanup () {}\ninitialize () {'check': False}\n",
+        ),
+        ("test", "check_repo () {}\ncheck_input_file () {}\nmy_test () {}\n"),
+    ],
+)
+def test_execute(monkeypatch, capsys, command, out):
+    for func in [
+        "check_brew_cmd",
+        "check_cask",
+        "set_brewfile_repo",
+        "set_brewfile_local",
+        "check_repo",
+        "repomgr",
+        "brew_cmd",
+        "initialize",
+        "check_input_file",
+        "edit_brewfile",
+        "cat_brewfile",
+        "get_files",
+        "clean_non_request",
+        "cleanup",
+        "install",
+        "proc",
+        "my_test",
+    ]:
+
+        def set_func(func):
+            # make local variable, needed to keep in print view
+            name = func
+            monkeypatch.setattr(
+                brew_file.BrewFile,
+                func,
+                lambda self, *args, **kw: print(name, args, kw),
+            )
+
+        set_func(func)
+    monkeypatch.setattr(
+        brew_file.BrewFile, "check_brew_cmd", lambda self: None
+    )
+    monkeypatch.setattr(brew_file.BrewFile, "brew_val", lambda self, x: x)
+    bf = brew_file.BrewFile({})
+    bf.opt["command"] = command
+    bf.execute()
+    captured = capsys.readouterr()
+    assert captured.out == out
+
+
+def test_execute_err(bf):
+    bf.opt["command"] = "wrong_command"
+    with pytest.raises(RuntimeError) as excinfo:
+        bf.execute()
+    assert (
+        str(excinfo.value)
+        == f"Wrong command: wrong_command\nExecute `{brew_file.__prog__} help` for more information."
+    )

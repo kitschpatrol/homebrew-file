@@ -215,16 +215,16 @@ class BrewFile:
 
     def proc(
         self,
-        cmd,
-        print_cmd=True,
-        print_out=True,
-        exit_on_err=True,
-        separate_err=False,
-        print_err=True,
-        verbose=1,
-        env=None,
-        dryrun=False,
-    ):
+        cmd: str | list[str],
+        print_cmd: bool = True,
+        print_out: bool = True,
+        exit_on_err: bool = True,
+        separate_err: bool = False,
+        print_err: bool = True,
+        verbose: int = 1,
+        env: dict | None = None,
+        dryrun: bool = False,
+    ) -> tuple[int, list[str]]:
         if env is None:
             env = {"HOMEBREW_NO_AUTO_UPDATE": "1"}
         return self.helper.proc(
@@ -2350,7 +2350,7 @@ class BrewFile:
             return
 
         # No command found
-        RuntimeError(
+        raise RuntimeError(
             f"Wrong command: {self.opt['command']}\n"
-            f"Execute ` {__prog__} help` for more information."
+            f"Execute `{__prog__} help` for more information."
         )
