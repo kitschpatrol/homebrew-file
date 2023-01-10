@@ -169,6 +169,16 @@ class Tee:
 
 
 @dataclass
+class StrRe(str):
+    """Str wrapper to use regex especially for match-case."""
+
+    var: str
+
+    def __eq__(self, pattern) -> bool:
+        return True if re.search(pattern, self.var) is not None else False
+
+
+@dataclass
 class BrewHelper:
     """Helper functions for BrewFile."""
 
@@ -407,14 +417,15 @@ class BrewInfo:
         brew_taps = []
         other_taps = []
         for t in self.tap_list:
-            if t == "homebrew/core":
-                core_tap.append(t)
-            elif t == self.helper.opt["cask_repo"]:
-                cask_tap.append(t)
-            elif t.startswith("homebrew/"):
-                brew_taps.append(t)
-            else:
-                other_taps.append(t)
+            match t:
+                case "homebrew/core":
+                    core_tap.append(t)
+                case s if s == self.helper.opt["cask_repo"]:
+                    cask_tap.append(t)
+                case s if s.startswith("homebrew/"):
+                    brew_taps.append(t)
+                case _:
+                    other_taps.append(t)
         brew_taps.sort()
         other_taps.sort()
         self.tap_list = core_tap + cask_tap + brew_taps + other_taps
@@ -532,57 +543,61 @@ class BrewInfo:
                         if '"' in line or "'" in line:
                             self.helper.opt["form"] = "bundle"
 
-                if cmd in ("brew", "install"):
-                    self.brew_input.append(p)
-                    self.brew_input_opt[p] = opt
-                elif cmd == "tap":
-                    self.tap_input.append(p)
-                elif cmd == "tapall":
-                    self.tap_input.append(p)
-                    for tp in self.get_tap_packs(p):
-                        self.brew_input.append(tp)
-                        self.brew_input_opt[tp] = ""
-                    for tp in self.get_tap_casks(p):
-                        self.cask_input.append(tp)
-                elif cmd == "cask":
-                    self.cask_input.append(p)
-                elif cmd == "mas" and line.find(",") != -1:
-                    if not self.helper.opt.get("form"):
-                        self.helper.opt["form"] = "bundle"
-                    p = line.split()[1].strip(",").strip("'").strip('"')
-                    pid = line.split()[3]
-                    self.appstore_input.append(pid + " " + p)
-                elif cmd in ("appstore", "mas"):
-                    self.appstore_input.append(
-                        re.sub("^ *appstore *", "", line)
-                        .strip()
-                        .strip("'")
-                        .strip('"')
-                    )
-                elif cmd == "main":
-                    self.main_input.append(p)
-                    self.file_input.append(p)
-                elif cmd == "file" or cmd.lower() == "brewfile":
-                    self.file_input.append(p)
-                elif cmd == "before":
-                    self.before_input.append(excmd)
-                elif cmd == "after":
-                    self.after_input.append(excmd)
-                elif cmd == "cask_args":
-                    if self.helper.opt.get("form") in ["brewdler", "bundle"]:
-                        for arg in excmd.split(","):
-                            k = f"--{arg.split(':')[0]}"
-                            v = arg.split(":")[1]
-                            if v == "true":
-                                v = ""
-                            self.cask_args_input[k] = v
-                    else:
-                        for arg in excmd.split():
-                            k = arg.split(":")[0]
-                            v = arg.split("=")[1] if "=" in arg else ""
-                            self.cask_args_input[k] = v
-                else:
-                    self.cmd_input.append(line.strip())
+                match cmd.lower():
+                    case "brew" | "install":
+                        self.brew_input.append(p)
+                        self.brew_input_opt[p] = opt
+                    case "tap":
+                        self.tap_input.append(p)
+                    case "tapall":
+                        self.tap_input.append(p)
+                        for tp in self.get_tap_packs(p):
+                            self.brew_input.append(tp)
+                            self.brew_input_opt[tp] = ""
+                        for tp in self.get_tap_casks(p):
+                            self.cask_input.append(tp)
+                    case "cask":
+                        self.cask_input.append(p)
+                    case s if s == "mas" and line.find(",") != -1:
+                        if not self.helper.opt.get("form"):
+                            self.helper.opt["form"] = "bundle"
+                        p = line.split()[1].strip(",").strip("'").strip('"')
+                        pid = line.split()[3]
+                        self.appstore_input.append(pid + " " + p)
+                    case "appstore" | "mas":
+                        self.appstore_input.append(
+                            re.sub("^ *appstore *", "", line)
+                            .strip()
+                            .strip("'")
+                            .strip('"')
+                        )
+                    case "main":
+                        self.main_input.append(p)
+                        self.file_input.append(p)
+                    case "file" | "brewfile":
+                        self.file_input.append(p)
+                    case "before":
+                        self.before_input.append(excmd)
+                    case "after":
+                        self.after_input.append(excmd)
+                    case "cask_args":
+                        if self.helper.opt.get("form") in [
+                            "brewdler",
+                            "bundle",
+                        ]:
+                            for arg in excmd.split(","):
+                                k = f"--{arg.split(':')[0]}"
+                                v = arg.split(":")[1]
+                                if v == "true":
+                                    v = ""
+                                self.cask_args_input[k] = v
+                        else:
+                            for arg in excmd.split():
+                                k = arg.split(":")[0]
+                                v = arg.split("=")[1] if "=" in arg else ""
+                                self.cask_args_input[k] = v
+                    case _:
+                        self.cmd_input.append(line.strip())
 
     def get_tap_path(self, tap: str) -> Path:
         """Get tap path."""
@@ -2662,30 +2677,32 @@ class BrewFile:
                     content = f.read()
                 for line in content.split("\n"):
                     cask_app = ""
-                    if re.search("^ *name ", line):
-                        cask_app = (
-                            re.sub("^ *name ", "", line).strip("\"' ") + ".app"
-                        )
-                    elif re.search("^ *app ", line):
-                        cask_app = (
-                            re.sub("^ *app ", "", line)
-                            .strip("\"' ")
-                            .split("/")[-1]
-                        )
-                    elif re.search("\\.app", line):
-                        cask_app = (
-                            line.split(".app")[0]
-                            .split("/")[-1]
-                            .split("'")[-1]
-                            .split('"')[-1]
-                        )
-                    elif re.search("^ *pkg ", line):
-                        cask_app = (
-                            re.sub("^ *pkg ", "", line)
-                            .strip("\"' ")
-                            .split("/")[-1]
-                            .replace(".pkg", "")
-                        )
+                    match StrRe(line):
+                        case "^ *name ":
+                            cask_app = (
+                                re.sub("^ *name ", "", line).strip("\"' ")
+                                + ".app"
+                            )
+                        case "^ *app ":
+                            cask_app = (
+                                re.sub("^ *app ", "", line)
+                                .strip("\"' ")
+                                .split("/")[-1]
+                            )
+                        case "\\.app":
+                            cask_app = (
+                                line.split(".app")[0]
+                                .split("/")[-1]
+                                .split("'")[-1]
+                                .split('"')[-1]
+                            )
+                        case "^ *pkg ", line:
+                            cask_app = (
+                                re.sub("^ *pkg ", "", line)
+                                .strip("\"' ")
+                                .split("/")[-1]
+                                .replace(".pkg", "")
+                            )
                     if cask_app != "" and cask_app not in cask_apps:
                         cask_apps.append(cask_app)
 
@@ -3783,95 +3800,96 @@ def main() -> int:
 
     b.set_args(**args_dict)
 
-    if b.opt["command"] == "help":
-        parser.print_help()
-        return 0
-    elif b.opt["command"] == "brew":
-        if args_tmp and args_tmp[0] in ["-h", "--help"]:
+    match b.opt["command"]:
+        case "help":
+            parser.print_help()
+            return 0
+        case "brew":
+            if args_tmp and args_tmp[0] in ["-h", "--help"]:
+                subparsers.choices[b.opt["command"]].print_help()
+                return 0
+        case _ if "help" in args_tmp:
             subparsers.choices[b.opt["command"]].print_help()
             return 0
-    elif "help" in args_tmp:
-        subparsers.choices[b.opt["command"]].print_help()
-        return 0
-    elif b.opt["command"] == "commands":
-        commands = [
-            "install",
-            "brew",
-            "init",
-            "dump",
-            "set_repo",
-            "set_local",
-            "pull",
-            "push",
-            "clean",
-            "clean_non_request",
-            "update",
-            "edit",
-            "cat",
-            "casklist",
-            "test",
-            "get_files",
-            "commands",
-            "version",
-            "help",
-        ]
-        commands_hyphen = [
-            "-i",
-            "--init",
-            "-s",
-            "--set_repo",
-            "--set_local",
-            "-c",
-            "--clean",
-            "--clean_non_request",
-            "-u",
-            "--update",
-            "-e",
-            "--edit",
-            "--cat",
-            "--test",
-            "--commands",
-            "-v",
-            "--version",
-            "-h",
-            "--help",
-        ]
-        options = [
-            "-f",
-            "--file",
-            "-b",
-            "--backup",
-            "-F",
-            "--format",
-            "--form",
-            "--leaves",
-            "--on_request",
-            "--top_packages",
-            "-U",
-            "--noupgrade",
-            "-r",
-            "--repo",
-            "-n",
-            "--nolink",
-            "--caskonly",
-            "--appstore",
-            "--no_appstore",
-            "--all_files",
-            "-d",
-            "--dry_run",
-            "-y",
-            "--yes",
-            "-V",
-            "--verbose",
-        ]
-        print("commands:", " ".join(commands))
-        print("commands_hyphen:", " ".join(commands_hyphen))
-        print("options:", " ".join(options))
-        return 0
-    elif b.opt["command"] == "version":
-        b.proc("brew -v", print_cmd=False)
-        print(__prog__ + " " + __version__ + " " + __date__)
-        return 0
+        case "commands":
+            commands = [
+                "install",
+                "brew",
+                "init",
+                "dump",
+                "set_repo",
+                "set_local",
+                "pull",
+                "push",
+                "clean",
+                "clean_non_request",
+                "update",
+                "edit",
+                "cat",
+                "casklist",
+                "test",
+                "get_files",
+                "commands",
+                "version",
+                "help",
+            ]
+            commands_hyphen = [
+                "-i",
+                "--init",
+                "-s",
+                "--set_repo",
+                "--set_local",
+                "-c",
+                "--clean",
+                "--clean_non_request",
+                "-u",
+                "--update",
+                "-e",
+                "--edit",
+                "--cat",
+                "--test",
+                "--commands",
+                "-v",
+                "--version",
+                "-h",
+                "--help",
+            ]
+            options = [
+                "-f",
+                "--file",
+                "-b",
+                "--backup",
+                "-F",
+                "--format",
+                "--form",
+                "--leaves",
+                "--on_request",
+                "--top_packages",
+                "-U",
+                "--noupgrade",
+                "-r",
+                "--repo",
+                "-n",
+                "--nolink",
+                "--caskonly",
+                "--appstore",
+                "--no_appstore",
+                "--all_files",
+                "-d",
+                "--dry_run",
+                "-y",
+                "--yes",
+                "-V",
+                "--verbose",
+            ]
+            print("commands:", " ".join(commands))
+            print("commands_hyphen:", " ".join(commands_hyphen))
+            print("options:", " ".join(options))
+            return 0
+        case "version":
+            b.proc("brew -v", print_cmd=False)
+            print(__prog__ + " " + __version__ + " " + __date__)
+            return 0
 
     try:
         b.execute()
