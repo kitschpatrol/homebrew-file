@@ -526,9 +526,9 @@ fi
         # Cask args
         if self.cask_args_input:
             output += "\n# Cask args\n"
-            output += cmd_cask_args
             delimiter = ""
             for k, v in self.cask_args_input.items():
+                output += cmd_cask_args
                 if self.helper.opt["form"] in ["brewdler", "bundle"]:
                     if v == "":
                         output += f"{delimiter}{k.removeprefix('--')}: true"
